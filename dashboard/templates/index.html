@@ -3,19 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sales Analytics Dashboard</title>
+    <title>RS Squared - Sales Analytics Dashboard</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
     <!-- Header -->
     <header class="header">
         <div class="container">
             <div class="header-content">
-                <h1 class="logo">📊 Sales Analytics</h1>
+                <h1 class="logo">RS Squared</h1>
                 <div class="header-info">
                     <span class="status-badge">Live</span>
                     <span class="date" id="currentDate"></span>
@@ -28,10 +28,12 @@
     <nav class="tabs-container">
         <div class="container">
             <div class="tabs">
-                <button class="tab-btn active" data-tab="overview">Overview</button>
+                <button class="tab-btn active" data-tab="home">Home</button>
+                <button class="tab-btn" data-tab="overview">Overview</button>
                 <button class="tab-btn" data-tab="sales">Sales Analysis</button>
                 <button class="tab-btn" data-tab="customers">Customer Insights</button>
                 <button class="tab-btn" data-tab="products">Product Performance</button>
+                <button class="tab-btn" data-tab="advanced">Advanced Analytics</button>
             </div>
         </div>
     </nav>
@@ -45,36 +47,61 @@
                 <p>Loading dashboard data...</p>
             </div>
 
+            <!-- Home Tab -->
+            <div class="tab-content active" id="home">
+                <div class="home-hero-simple">
+                    <div class="hero-content-simple">
+                        <h1 class="hero-title-simple">
+                            <span class="hero-text-small">Welcome to</span>
+                            <span class="brand-name-large">RS Squared</span>
+                        </h1>
+                        <p class="hero-subtitle-simple">
+                            Your comprehensive analytics platform for data-driven insights and intelligent business decisions
+                        </p>
+                    </div>
+                    <div class="hero-background">
+                        <div class="floating-shape shape-1"></div>
+                        <div class="floating-shape shape-2"></div>
+                        <div class="floating-shape shape-3"></div>
+                        <div class="floating-shape shape-4"></div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Overview Tab -->
-            <div class="tab-content active" id="overview">
+            <div class="tab-content" id="overview">
                 <!-- KPI Cards -->
                 <div class="kpi-grid">
-                    <div class="kpi-card">
+                    <div class="kpi-card kpi-card-revenue">
                         <div class="kpi-icon">💰</div>
                         <div class="kpi-content">
                             <h3 class="kpi-label">Total Revenue</h3>
                             <p class="kpi-value" id="totalRevenue">$0</p>
+                            <span class="kpi-badge">All Time</span>
                         </div>
                     </div>
-                    <div class="kpi-card">
+                    <div class="kpi-card kpi-card-orders">
                         <div class="kpi-icon">📦</div>
                         <div class="kpi-content">
                             <h3 class="kpi-label">Total Orders</h3>
                             <p class="kpi-value" id="totalOrders">0</p>
+                            <span class="kpi-badge">Processed</span>
                         </div>
                     </div>
-                    <div class="kpi-card">
+                    <div class="kpi-card kpi-card-avg">
                         <div class="kpi-icon">📈</div>
                         <div class="kpi-content">
                             <h3 class="kpi-label">Avg Order Value</h3>
                             <p class="kpi-value" id="avgOrderValue">$0</p>
+                            <span class="kpi-badge">Per Order</span>
                         </div>
                     </div>
-                    <div class="kpi-card">
+                    <div class="kpi-card kpi-card-products">
                         <div class="kpi-icon">🎯</div>
                         <div class="kpi-content">
                             <h3 class="kpi-label">Total Products</h3>
                             <p class="kpi-value" id="totalProducts">0</p>
+                            <span class="kpi-badge">In Catalog</span>
                         </div>
                     </div>
                 </div>
@@ -84,14 +111,31 @@
                     <div class="chart-row">
                         <div class="chart-card full-width">
                             <div id="salesTrendsChart"></div>
+                            <div class="prediction-controls">
+                                <button class="predict-btn" id="predictSalesBtn" onclick="predictSales()">
+                                    <span class="btn-icon">🔮</span>
+                                    <span class="btn-text">Predict Next Month Sales</span>
+                                </button>
+                            </div>
+                            <div class="prediction-result" id="salesPredictionResult" style="display: none;"></div>
                         </div>
                     </div>
 
                     <div class="chart-row">
-                        <div class="chart-card">
+                        <div class="chart-card full-width">
                             <div id="categoryChart"></div>
+                            <div class="prediction-controls">
+                                <button class="predict-btn" id="predictCategoryBtn" onclick="predictCategorySales()">
+                                    <span class="btn-icon">📊</span>
+                                    <span class="btn-text">Predict Category Sales</span>
+                                </button>
+                            </div>
+                            <div class="prediction-result" id="categoryPredictionResult" style="display: none;"></div>
                         </div>
-                        <div class="chart-card">
+                    </div>
+
+                    <div class="chart-row">
+                        <div class="chart-card full-width">
                             <div id="genderChart"></div>
                         </div>
                     </div>
@@ -108,10 +152,7 @@
                     </div>
 
                     <div class="chart-row">
-                        <div class="chart-card">
-                            <div id="geographicChart"></div>
-                        </div>
-                        <div class="chart-card">
+                        <div class="chart-card full-width">
                             <div id="seasonalityChart"></div>
                         </div>
                     </div>
@@ -122,17 +163,14 @@
             <div class="tab-content" id="customers">
                 <div class="charts-section">
                     <div class="chart-row">
-                        <div class="chart-card">
+                        <div class="chart-card full-width">
                             <div id="ageDistributionChart"></div>
-                        </div>
-                        <div class="chart-card">
-                            <div id="genderDetailChart"></div>
                         </div>
                     </div>
 
                     <div class="chart-row">
                         <div class="chart-card full-width">
-                            <div id="geographicDetailChart"></div>
+                            <div id="customerLocationChart"></div>
                         </div>
                     </div>
                 </div>
@@ -144,15 +182,47 @@
                     <div class="chart-row">
                         <div class="chart-card full-width">
                             <div id="topProductsChart"></div>
+                            <div class="prediction-controls">
+                                <button class="predict-btn" id="predictProductBtn" onclick="predictProductDemand()">
+                                    <span class="btn-icon">📦</span>
+                                    <span class="btn-text">Predict Product Demand</span>
+                                </button>
+                            </div>
+                            <div class="prediction-result" id="productPredictionResult" style="display: none;"></div>
                         </div>
                     </div>
 
                     <div class="chart-row">
-                        <div class="chart-card">
-                            <div id="categoryDetailChart"></div>
-                        </div>
-                        <div class="chart-card">
+                        <div class="chart-card full-width">
                             <div id="priceDistributionChart"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Advanced Analytics Tab -->
+            <div class="tab-content" id="advanced">
+                <div class="section-header">
+                    <h2 class="section-title">🔬 Advanced Analytics & Insights</h2>
+                    <p class="section-subtitle">Deep dive into advanced metrics and correlations</p>
+                </div>
+                
+                <div class="charts-section">
+                    <div class="chart-row">
+                        <div class="chart-card full-width">
+                            <div id="monthlyTrendsChart"></div>
+                        </div>
+                    </div>
+
+                    <div class="chart-row">
+                        <div class="chart-card full-width">
+                            <div id="revenueHeatmapChart"></div>
+                        </div>
+                    </div>
+
+                    <div class="chart-row">
+                        <div class="chart-card full-width">
+                            <div id="shippingAnalysisChart"></div>
                         </div>
                     </div>
                 </div>
@@ -163,7 +233,7 @@
     <!-- Footer -->
     <footer class="footer">
         <div class="container">
-            <p>&copy; 2025 Sales Analytics Dashboard | Powered by Plotly & Flask</p>
+            <p>&copy; 2025 RS Squared Analytics Dashboard | Powered by Plotly & Flask</p>
         </div>
     </footer>
 

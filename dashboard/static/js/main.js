@@ -53,7 +53,8 @@ async function loadDashboardData() {
 
         // Load all data in parallel for better performance
         const [overview, salesTrends, categoryPerf, ageDistrib, geoSales, 
-               genderAnalysis, seasonality, priceDistrib, quarterlyTrends, topProducts] = 
+               genderAnalysis, seasonality, priceDistrib, quarterlyTrends, topProducts,
+               monthlyTrends, revenueHeatmap, shippingAnalysis] = 
             await Promise.all([
                 fetchData('/api/overview'),
                 fetchData('/api/sales-trends'),
@@ -64,13 +65,16 @@ async function loadDashboardData() {
                 fetchData('/api/seasonality-impact'),
                 fetchData('/api/price-distribution'),
                 fetchData('/api/quarterly-trends'),
-                fetchData('/api/top-products')
+                fetchData('/api/top-products'),
+                fetchData('/api/monthly-trends'),
+                fetchData('/api/revenue-heatmap'),
+                fetchData('/api/shipping-analysis')
             ]);
 
         // Update KPIs
         updateKPIs(overview);
 
-        // Render all charts
+        // Render all charts (no duplicates)
         renderChart('salesTrendsChart', salesTrends);
         renderChart('categoryChart', categoryPerf);
         renderChart('ageDistributionChart', ageDistrib);
@@ -81,10 +85,13 @@ async function loadDashboardData() {
         renderChart('quarterlyTrendsChart', quarterlyTrends);
         renderChart('topProductsChart', topProducts);
         
-        // Duplicate some charts for different tabs
-        renderChart('categoryDetailChart', categoryPerf);
-        renderChart('genderDetailChart', genderAnalysis);
-        renderChart('geographicDetailChart', geoSales);
+        // Customer location chart (using geographic data)
+        renderChart('customerLocationChart', geoSales);
+        
+        // Advanced analytics charts
+        renderChart('monthlyTrendsChart', monthlyTrends);
+        renderChart('revenueHeatmapChart', revenueHeatmap);
+        renderChart('shippingAnalysisChart', shippingAnalysis);
 
         // Hide loading
         setTimeout(() => {
@@ -189,13 +196,13 @@ function renderChart(elementId, chartData) {
         }
     };
 
-    // Enhanced layout settings
+    // Enhanced layout settings with proper zoom out configuration
     const layout = {
         ...chartData.layout,
         autosize: true,
-        margin: chartData.layout.margin || { l: 60, r: 40, t: 80, b: 60 },
+        margin: chartData.layout.margin || { l: 80, r: 60, t: 80, b: 80 },
         font: {
-            family: 'Inter, sans-serif',
+            family: 'Poppins, sans-serif',
             color: '#e0e0e0'
         },
         paper_bgcolor: 'rgba(0,0,0,0)',
@@ -204,13 +211,39 @@ function renderChart(elementId, chartData) {
         hoverlabel: {
             bgcolor: '#1a1f3a',
             font: {
-                family: 'Inter, sans-serif',
+                family: 'Poppins, sans-serif',
                 size: 13,
                 color: '#e0e0e0'
             },
             bordercolor: '#00d4ff'
         }
     };
+
+    // Ensure all axes have autorange enabled for full zoom out
+    if (layout.xaxis) {
+        layout.xaxis = {
+            ...layout.xaxis,
+            autorange: true,
+            fixedrange: false
+        };
+    }
+    
+    if (layout.yaxis) {
+        layout.yaxis = {
+            ...layout.yaxis,
+            autorange: true,
+            fixedrange: false
+        };
+    }
+
+    // Handle secondary y-axis for dual-axis charts
+    if (layout.yaxis2) {
+        layout.yaxis2 = {
+            ...layout.yaxis2,
+            autorange: true,
+            fixedrange: false
+        };
+    }
 
     // Render the chart
     Plotly.newPlot(
@@ -267,4 +300,266 @@ if (window.performance && window.performance.timing) {
             console.log(`📊 Dashboard loaded in ${pageLoadTime}ms`);
         }, 0);
     });
+}
+
+// ==================== PREDICTION FUNCTIONS ====================
+
+async function predictSales() {
+    const btn = document.getElementById('predictSalesBtn');
+    const resultDiv = document.getElementById('salesPredictionResult');
+    
+    try {
+        // Disable button and show loading
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading-spinner"></span> <span>Predicting...</span>';
+        
+        const response = await fetch('/api/predict-sales');
+        const data = await response.json();
+        
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        
+        // Format the result
+        const growthClass = data.growth_rate >= 0 ? 'growth-positive' : 'growth-negative';
+        const growthIcon = data.growth_rate >= 0 ? '📈' : '📉';
+        
+        resultDiv.innerHTML = `
+            <div class="prediction-header">
+                <h3 class="prediction-title">
+                    <span>🔮</span>
+                    Sales Prediction for ${data.predicted_month}
+                </h3>
+                <div class="accuracy-badge">
+                    <span>✓</span>
+                    Model Accuracy: ${data.accuracy.toFixed(2)}%
+                </div>
+            </div>
+            
+            <div class="prediction-main">
+                <div class="prediction-item">
+                    <div class="prediction-label">Predicted Revenue</div>
+                    <div class="prediction-value">
+                        $${(data.predicted_revenue / 1e6).toFixed(2)}M
+                    </div>
+                </div>
+                
+                <div class="prediction-item">
+                    <div class="prediction-label">Last Month (${data.last_month})</div>
+                    <div class="prediction-value prediction-value-small">
+                        $${(data.last_month_revenue / 1e6).toFixed(2)}M
+                    </div>
+                </div>
+                
+                <div class="prediction-item">
+                    <div class="prediction-label">Growth Rate</div>
+                    <div class="prediction-value ${growthClass}">
+                        ${growthIcon} ${data.growth_rate >= 0 ? '+' : ''}${data.growth_rate.toFixed(2)}%
+                    </div>
+                </div>
+                
+                <div class="prediction-item">
+                    <div class="prediction-label">3-Month Average</div>
+                    <div class="prediction-value prediction-value-small">
+                        $${(data.avg_last_3_months / 1e6).toFixed(2)}M
+                    </div>
+                </div>
+            </div>
+            
+            <div class="prediction-metrics">
+                <div class="metric-item">
+                    <div class="metric-label">R² Score</div>
+                    <div class="metric-value">${data.r2_score.toFixed(4)}</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-label">MAE</div>
+                    <div class="metric-value">$${(data.mae / 1e6).toFixed(2)}M</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-label">RMSE</div>
+                    <div class="metric-value">$${(data.rmse / 1e6).toFixed(2)}M</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-label">MAPE</div>
+                    <div class="metric-value">${data.mape.toFixed(2)}%</div>
+                </div>
+            </div>
+        `;
+        
+        resultDiv.style.display = 'block';
+        
+    } catch (error) {
+        console.error('Prediction error:', error);
+        resultDiv.innerHTML = `
+            <div class="prediction-header">
+                <h3 class="prediction-title" style="color: #ff6b6b;">
+                    <span>⚠️</span>
+                    Prediction Error
+                </h3>
+            </div>
+            <p style="color: var(--text-secondary); text-align: center;">
+                ${error.message || 'Unable to generate prediction. Please try again.'}
+            </p>
+        `;
+        resultDiv.style.display = 'block';
+    } finally {
+        // Re-enable button
+        btn.disabled = false;
+        btn.innerHTML = '<span class="btn-icon">🔮</span><span class="btn-text">Predict Next Month Sales</span>';
+    }
+}
+
+async function predictCategorySales() {
+    const btn = document.getElementById('predictCategoryBtn');
+    const resultDiv = document.getElementById('categoryPredictionResult');
+    
+    try {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading-spinner"></span> <span>Predicting...</span>';
+        
+        const response = await fetch('/api/predict-category-sales');
+        const data = await response.json();
+        
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        
+        // Sort by predicted revenue
+        const predictions = data.predictions.sort((a, b) => b.predicted_revenue - a.predicted_revenue);
+        
+        const tableRows = predictions.map(pred => {
+            const growthClass = pred.growth_rate >= 0 ? 'growth-positive' : 'growth-negative';
+            const growthIcon = pred.growth_rate >= 0 ? '↑' : '↓';
+            return `
+                <tr>
+                    <td><strong>${pred.category}</strong></td>
+                    <td>$${(pred.predicted_revenue / 1e6).toFixed(2)}M</td>
+                    <td>$${(pred.last_month_revenue / 1e6).toFixed(2)}M</td>
+                    <td class="${growthClass}">
+                        ${growthIcon} ${pred.growth_rate >= 0 ? '+' : ''}${pred.growth_rate.toFixed(1)}%
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        
+        resultDiv.innerHTML = `
+            <div class="prediction-header">
+                <h3 class="prediction-title">
+                    <span>📊</span>
+                    Category Sales Predictions for ${data.predicted_month}
+                </h3>
+            </div>
+            
+            <table class="prediction-table">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Predicted Revenue</th>
+                        <th>Last Month</th>
+                        <th>Growth</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tableRows}
+                </tbody>
+            </table>
+        `;
+        
+        resultDiv.style.display = 'block';
+        
+    } catch (error) {
+        console.error('Prediction error:', error);
+        resultDiv.innerHTML = `
+            <div class="prediction-header">
+                <h3 class="prediction-title" style="color: #ff6b6b;">
+                    <span>⚠️</span>
+                    Prediction Error
+                </h3>
+            </div>
+            <p style="color: var(--text-secondary); text-align: center;">
+                ${error.message || 'Unable to generate predictions. Please try again.'}
+            </p>
+        `;
+        resultDiv.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="btn-icon">📊</span><span class="btn-text">Predict Category Sales</span>';
+    }
+}
+
+async function predictProductDemand() {
+    const btn = document.getElementById('predictProductBtn');
+    const resultDiv = document.getElementById('productPredictionResult');
+    
+    try {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading-spinner"></span> <span>Predicting...</span>';
+        
+        const response = await fetch('/api/predict-product-demand');
+        const data = await response.json();
+        
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        
+        const predictions = data.predictions.sort((a, b) => b.predicted_quantity - a.predicted_quantity);
+        
+        const tableRows = predictions.map(pred => {
+            const growthClass = pred.growth_rate >= 0 ? 'growth-positive' : 'growth-negative';
+            const growthIcon = pred.growth_rate >= 0 ? '↑' : '↓';
+            return `
+                <tr>
+                    <td><strong>${pred.product_name}</strong></td>
+                    <td>${Math.round(pred.predicted_quantity).toLocaleString()} units</td>
+                    <td>${Math.round(pred.last_month_quantity).toLocaleString()} units</td>
+                    <td class="${growthClass}">
+                        ${growthIcon} ${pred.growth_rate >= 0 ? '+' : ''}${pred.growth_rate.toFixed(1)}%
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        
+        resultDiv.innerHTML = `
+            <div class="prediction-header">
+                <h3 class="prediction-title">
+                    <span>📦</span>
+                    Product Demand Predictions for ${data.predicted_month}
+                </h3>
+            </div>
+            
+            <table class="prediction-table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Predicted Demand</th>
+                        <th>Last Month</th>
+                        <th>Growth</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tableRows}
+                </tbody>
+            </table>
+        `;
+        
+        resultDiv.style.display = 'block';
+        
+    } catch (error) {
+        console.error('Prediction error:', error);
+        resultDiv.innerHTML = `
+            <div class="prediction-header">
+                <h3 class="prediction-title" style="color: #ff6b6b;">
+                    <span>⚠️</span>
+                    Prediction Error
+                </h3>
+            </div>
+            <p style="color: var(--text-secondary); text-align: center;">
+                ${error.message || 'Unable to generate predictions. Please try again.'}
+            </p>
+        `;
+        resultDiv.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="btn-icon">📦</span><span class="btn-text">Predict Product Demand</span>';
+    }
 }
