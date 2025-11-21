@@ -37,10 +37,6 @@ ENV/
 *~
 
 
-# Data files (CSV) - Exclude large files only
-Order_Details_Cleaned.csv
-Product_Details_Cleaned.csv
-
 # Jupyter Notebook
 .ipynb_checkpoints
 
